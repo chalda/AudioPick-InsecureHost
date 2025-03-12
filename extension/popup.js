@@ -17,6 +17,13 @@ function debugMessage(...args) {
 	});
 }
 
+// input is a URL().hostname like string without protocol
+// works for 192.168.*.* local network
+// loopback addresses: localhost, 127.0.0.1, 0.0.0.0
+function testPermittedInsecureHostname(hostname) {
+	return hostname.startsWith("192.168.") || hostname === "localhost" || hostname ==="127.0.0.1" || hostname ==="0.0.0.0";
+}
+
 // OnChange handler for our smart checkbox
 function checkboxSmart_OnChange(e) {
 	if (e.target.checked === true) {
@@ -84,7 +91,12 @@ async function smartMicAccess(excludedTabId) {
 	for (let [key, value] of Object.entries(items)) {
 		if (key.startsWith(storagePrefix)) {
 			if (value !== "default") {
-				let micPattern = "https://" + key.replace(storagePrefix, "") + "/*";
+				const hostname = key.replace(storagePrefix, "")
+				const proto = testPermittedInsecureHostname(hostname)? "http://":"https://";
+				//@FIXME this would fail for secure local IPs if using SSL on local intranet
+				// not a problem i have and dont care to figure out how to redesign the logic around it further
+
+				let micPattern = proto + hostname + "/*";
 				debugMessage("| smartMicAccess(starredDom): allow:", micPattern);
 				await setMicAccess(micPattern, "allow");
 			}
@@ -92,13 +104,36 @@ async function smartMicAccess(excludedTabId) {
 	}
 	// Re-acquire microphone access for domains
 	// from secure tabs with a non-default device.
-	let secureTabs = await chrome.tabs.query({ url: "https://*/*" });
+	// and local loopback and local intranet pages
+	let secureTabs = await chrome.tabs.query({ url: ["https://*/*","localhost:*/*","*://192.168.*.*:*/*", "*://127.0.0.1:*/*", "*://0.0.0.0:*/*"] });
 	secureTabs.forEach(async function(tab) {
-		let micPattern = "https://" + tab.url.split("/")[2] + "/*";
+		let micPattern;
+		if(tab.url.split.indexOf("https") === -1){
+		 micPattern = "https://" + tab.url.split("/")[2] + "/*";
 		if (tab.id === excludedTabId) {
 			debugMessage("| smartMicAccess(secureTabs): skip excluded:", micPattern);
 			return;
 		}
+	 } else if(tab.url.split.indexOf("localhost") !== -1){
+		micPattern = "https://" + tab.url.split("/")[2] + "/*";
+		if (tab.id === excludedTabId) {
+			debugMessage("| smartMicAccess(secureTabs): skip excluded:", micPattern);
+			return;
+		}
+	 }
+	 else if(tab.url.split.indexOf("192.168.") !== -1){
+		micPattern = "https://" + tab.url.split("/")[2] + "/*";
+		if (tab.id === excludedTabId) {
+			debugMessage("| smartMicAccess(secureTabs): skip excluded:", micPattern);
+			return;
+		}
+	 }	 else if(tab.url.split.indexOf("127.0.0.1") !== -1){
+		micPattern = "https://" + tab.url.split("/")[2] + "/*";
+		if (tab.id === excludedTabId) {
+			debugMessage("| smartMicAccess(secureTabs): skip excluded:", micPattern);
+			return;
+		}
+	 }	
 		try {
 			const response = await chrome.tabs.sendMessage(tab.id, {
 				action: "getActiveDevice"
@@ -363,13 +398,24 @@ async function init() {
 		active: true,
 		currentWindow: true
 	});
-	// Check whether the tab has a valid (HTTPS) URL.
-	if (!activeTab.url || (activeTab.url.toLowerCase().indexOf("https") === -1)) {
-		tabError = "Invalid URL. Not HTTPS.";
+
+	const url = new URL(activeTab.url);
+	const hostname = url?.hostname;
+	const protocol = url?.protocol;
+
+	if (!url || !hostname || !protocol) {
+		tabError = "Invalid URL, disallowed hostname or not https://";
+	} else if (protocol !== "https:") {
+		if(testPermittedInsecureHostname(hostname)){
+			//nothing
+		} else {
+			tabError = "Invalid URL. Not HTTPS.";	
+		}
 	}
+		
 	if (tabError === "") {
 		// Generate domain storage name from tab URL.
-		domainString = storagePrefix + activeTab.url.split("/")[2];
+		domainString = storagePrefix + hostname;
 		// Retrieve domain settings if they exist.
 		const storage = await chrome.storage.local.get([domainString]);
 		if (storage[domainString]) {

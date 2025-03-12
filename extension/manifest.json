@@ -23,21 +23,21 @@
 		"48": "APV3_Icon_2d_2c_48.png",
 		"128": "APV3_Icon_2d_2c_128.png"
 	},
-	"host_permissions": ["https://*/*"],
+	"host_permissions": ["https://*/*", "http://localhost/*","http://127.0.0.1/*", "http://192.168.*.*/*"],
 	"background": {
 		"service_worker": "worker.js"
 	},
 	"content_scripts": [
 		{
-			"matches": ["https://*/*"],
+			"matches":  ["https://*/*", "http://localhost/*","http://127.0.0.1/*", "http://*/*"],
 			"js": ["main.js"],
 			"world": "MAIN",
 			"all_frames" : false
 		},
 		{
-			"matches": ["https://*/*"],
+			"matches":  ["https://*/*", "http://localhost/*","http://127.0.0.1/*", "http://*/*"],
 			"js": ["content.js"],
-			"world": "ISOLATED",
+			"wor5ld": "ISOLATED",
 			"all_frames" : false
 		}
 	],

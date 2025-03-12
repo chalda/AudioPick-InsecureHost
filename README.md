@@ -1,6 +1,32 @@
 # AudioPick <img src="./resources/Icons/APV3_Icon_2d_2c_192.png" align="right" width="128" height="128">
 A **Chrome Manifest V3 Extension** to pick a preferred audio output device for **HTML5** `<audio/>` and `<video/>` elements
 
+## *ATTENTION* 
+### Fork Modification
+This fork of AudioPick allows it to work on sites that are not using a secure connection (eg http://)
+Generally AudioPick would short-circuit the logic as soon as it saw http:// in the protocol.
+
+You might find it useful for home-networkin DIY media setups like plex or utilities that use a web-gui frontend.
+
+This fork expands the permitted urls to include 
+- common local loopback addresses: localhost, 127.0.0.1, 0.0.0.0
+- common local neighborhood address range: 192.168.*.*
+
+*HOWEVER* the changes only allow the extension scripts to run on those addresses. You then must override the microphone/audio restriction by Chrome here:
+
+chrome://flags/#unsafely-treat-insecure-origin-as-secure
+
+for example 
+```
+http://192.168.1.100:8888,http://localhost,http://localhost:42069,http://127.0.0.1:8000
+```
+
+I am sure there is a reason they dont allow you to access microphone normally so
+
+__Not at all tested, USE CAREFULLY AND AT YOUR OWN RISK__
+
+The rest of the readme from original =>
+
 ## How it works
 The extension finds **HTML5** `<audio/>` and `<video/>` elements within the document tree and manipulates the `sinkId` in order
 to switch to the preferred audio output device. Since version `0.3.8` it also finds `Audio`, `Video` and `AudioContext` objects that have not been inserted into the document tree, e. g. **Spotify** and **SoundCloud** should now work with the extension, too.
